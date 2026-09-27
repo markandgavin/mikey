@@ -31,13 +31,13 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
 import make_sample
-from compare import FILLS, HEADERS, KEY_MODE_LABELS, STATUS_ORDER
+from compare import DEFAULT_KEY_MODE, FILLS, HEADERS, KEY_MODE_LABELS, STATUS_ORDER
 
 LIST_HEADERS = ["Item #", "Quantity", "Part #", "Part Description"]
 MODE_CELL = "Comparison!$I$9"   # dropdown that picks the match key
 
 
-def build(list1_rows, list2_rows, n, key_mode="full"):
+def build(list1_rows, list2_rows, n, key_mode=DEFAULT_KEY_MODE):
     """n = maximum data rows per list. The Comparison tab holds 2n rows.
     key_mode is the initial dropdown value (a key in compare.KEY_MODE_LABELS)."""
     wb = Workbook()
@@ -201,7 +201,7 @@ def build(list1_rows, list2_rows, n, key_mode="full"):
     cmp_ws["I10"].font = Font(italic=True, color="808080")
     dv = DataValidation(
         type="list",
-        formula1='"' + ",".join(KEY_MODE_LABELS[m] for m in ("full", "part", "part-desc", "item-part")) + '"',
+        formula1='"' + ",".join(KEY_MODE_LABELS[m] for m in ("item-part", "part", "full", "part-desc")) + '"',
         allow_blank=False, showDropDown=False,
         error="Pick one of the listed match keys", errorTitle="Match key",
     )

@@ -27,7 +27,7 @@ LIST1 = [
     ("107", 10, "PN-008", "Cable 2m"),           # Qty Different (10 vs 8)
     ("108", 1, "PN-009", "Fuse 5A"),             # Only in List 1
     ("109", None, "PN-010", "Relay 12V"),        # Qty Different (blank -> 0 vs 2)
-    ("112", 1, "PN-013", "Pump A"),              # Only in List 1 (desc differs)
+    ("112", 1, "PN-013", "Pump A"),              # Match (description differs but is not compared)
 ]
 
 LIST2 = [
@@ -41,7 +41,7 @@ LIST2 = [
     ("107", 8, "PN-008", "Cable 2m"),
     ("109", 2, "PN-010", "Relay 12V"),
     ("110", 3, "PN-011", "Sensor"),              # Only in List 2
-    ("112", 1, "PN-013", "Pump B"),              # Only in List 2 (desc differs)
+    ("112", 1, "PN-013", "Pump B"),              # pairs with Pump A (Item # + Part # match)
 ]
 
 

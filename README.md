@@ -43,13 +43,14 @@ pip install openpyxl
 
 ## How rows are matched
 
-- By default the match key is Item # + Part # + Part Description. All three
-  must match after trimming whitespace, ignoring case.
+- By default rows pair when Item # and Part # match, after trimming
+  whitespace and ignoring case. The description is shown in the output but
+  not compared.
 - You can change the key. Script: `python compare.py workbook.xlsx --key part`
-  (choices: `full`, `part`, `part-desc`, `item-part`). Self-calculating
+  (choices: `item-part`, `part`, `full`, `part-desc`). Self-calculating
   workbook: pick from the "Match rows on" dropdown in cell I9 of the
   Comparison tab. Use `part` (Part # only) when Item # is just a line number
-  that differs between the two lists.
+  that differs between the two lists; `full` also compares the description.
 - Duplicate keys within a list stay as separate rows. They are paired in order
   of appearance (1st with 1st, 2nd with 2nd). Leftovers show as missing from
   the other list.

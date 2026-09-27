@@ -29,12 +29,11 @@ EXPECTED = [
     ("108", "PN-009", "Fuse 5A", 1, 0, -1, "Only in List 1"),
     ("109", "PN-010", "Relay 12V", 0, 2, 2, "Qty Different"),
     ("110", "PN-011", "Sensor", 0, 3, 3, "Only in List 2"),
-    ("112", "PN-013", "Pump A", 1, 0, -1, "Only in List 1"),
-    ("112", "PN-013", "Pump B", 0, 1, 1, "Only in List 2"),
+    ("112", "PN-013", "Pump A", 1, 1, 0, "Match"),
 ]
 
-EXPECTED_COUNTS = {"Match": 5, "Qty Different": 3,
-                   "Only in List 1": 4, "Only in List 2": 3}
+EXPECTED_COUNTS = {"Match": 6, "Qty Different": 3,
+                   "Only in List 1": 3, "Only in List 2": 2}
 
 
 def main():
@@ -71,6 +70,14 @@ def main():
     summary = {ws.cell(row=r, column=9).value: ws.cell(row=r, column=10).value
                for r in range(2, 7)}
     assert summary == {**EXPECTED_COUNTS, "Total": len(EXPECTED)}, summary
+    assert ws.cell(row=8, column=10).value == "Item # + Part #"
+
+    # Full key (description compared) splits the Pump A / Pump B pair
+    make_sample.build(make_sample.LIST1, make_sample.LIST2).save(path)
+    compare.run(path, "full")
+    full = load_workbook(path)["Comparison"]
+    statuses = [r[6] for r in full.iter_rows(min_row=2, max_row=full.max_row, max_col=7, values_only=True)]
+    assert statuses.count("Only in List 1") == 4 and statuses.count("Only in List 2") == 3, statuses
 
     # No formulas anywhere
     for sheet in wb.worksheets:

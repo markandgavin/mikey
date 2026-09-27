@@ -5,10 +5,10 @@ Usage:
     python compare.py "path/to/workbook.xlsx" [--key MODE]
 
 MODE decides which columns must match for two rows to pair up:
-    full       Item # + Part # + Part Description (default)
+    item-part  Item # + Part # (default; the description is shown but not compared)
     part       Part # only
+    full       Item # + Part # + Part Description
     part-desc  Part # + Part Description
-    item-part  Item # + Part #
 
 The workbook must contain the sheets "List 1" and "List 2", each with the
 header row  Item # | Quantity | Part # | Part Description  in row 1 and data
@@ -60,6 +60,7 @@ KEY_MODES = {
     "part-desc": (False, True),
     "item-part": (True, False),
 }
+DEFAULT_KEY_MODE = "item-part"
 KEY_MODE_LABELS = {
     "full": "Item # + Part # + Description",
     "part": "Part # only",
@@ -97,7 +98,7 @@ def parse_qty(value, where):
     return int(num) if num.is_integer() else num
 
 
-def read_list(ws, key_mode="full"):
+def read_list(ws, key_mode=DEFAULT_KEY_MODE):
     """Read a list sheet into rows: (key, display_item, display_part,
     display_desc, qty). Fully blank rows are skipped."""
     use_item, use_desc = KEY_MODES[key_mode]
@@ -183,7 +184,7 @@ def clear_sheet(ws):
         del ws.column_dimensions[col]
 
 
-def write_results(ws, results, key_mode="full"):
+def write_results(ws, results, key_mode=DEFAULT_KEY_MODE):
     clear_sheet(ws)
     bold = Font(bold=True)
     header_fill = PatternFill("solid", fgColor="D9D9D9")
@@ -246,7 +247,7 @@ def autofit(ws, min_width=8, max_width=60):
 # Main
 # --------------------------------------------------------------------------
 
-def run(path, key_mode="full"):
+def run(path, key_mode=DEFAULT_KEY_MODE):
     wb = load_workbook(path)
     for name in (LIST1, LIST2):
         if name not in wb.sheetnames:
@@ -271,10 +272,10 @@ def run(path, key_mode="full"):
 def main(argv):
     ap = argparse.ArgumentParser(description="Compare List 1 and List 2 in a workbook.")
     ap.add_argument("workbook", help="path to the .xlsx workbook")
-    ap.add_argument("--key", choices=sorted(KEY_MODES), default="full",
+    ap.add_argument("--key", choices=sorted(KEY_MODES), default=DEFAULT_KEY_MODE,
                     help="columns that must match for rows to pair up "
-                         "(full = Item # + Part # + Description, part = Part # only, "
-                         "part-desc = Part # + Description, item-part = Item # + Part #)")
+                         "(item-part = Item # + Part #, the default; part = Part # only; "
+                         "full = Item # + Part # + Description; part-desc = Part # + Description)")
     args = ap.parse_args(argv[1:])
     run(args.workbook, args.key)
     return 0
