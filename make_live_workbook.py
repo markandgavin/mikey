@@ -26,16 +26,20 @@ import zipfile
 from openpyxl import Workbook
 from openpyxl.formatting.rule import FormulaRule
 from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.styles import Border, Side
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.datavalidation import DataValidation
 
 import make_sample
-from compare import FILLS, HEADERS, STATUS_ORDER
+from compare import FILLS, HEADERS, KEY_MODE_LABELS, STATUS_ORDER
 
 LIST_HEADERS = ["Item #", "Quantity", "Part #", "Part Description"]
+MODE_CELL = "Comparison!$I$9"   # dropdown that picks the match key
 
 
-def build(list1_rows, list2_rows, n):
-    """n = maximum data rows per list. The Comparison tab holds 2n rows."""
+def build(list1_rows, list2_rows, n, key_mode="full"):
+    """n = maximum data rows per list. The Comparison tab holds 2n rows.
+    key_mode is the initial dropdown value (a key in compare.KEY_MODE_LABELS)."""
     wb = Workbook()
     ws1 = wb.active
     ws1.title = "List 1"
@@ -71,12 +75,18 @@ def build(list1_rows, list2_rows, n):
                  "in1", "in2", "Status", "itemKey", "partKey", "descKey",
                  "occ", "rank"])
 
+    use_item = (f'OR({MODE_CELL}="{KEY_MODE_LABELS["full"]}",'
+                f'{MODE_CELL}="{KEY_MODE_LABELS["item-part"]}")')
+    use_desc = (f'OR({MODE_CELL}="{KEY_MODE_LABELS["full"]}",'
+                f'{MODE_CELL}="{KEY_MODE_LABELS["part-desc"]}")')
+
     def key_block(sheet, kcol, ocol, kocol, qcol):
         for i in range(2, last + 1):
             s = f"'{sheet}'!"
             calc[f"{kcol}{i}"] = (
                 f'=IF(TRIM({s}A{i}&{s}C{i}&{s}D{i})="","",'
-                f'LOWER(TRIM({s}A{i})&"|"&TRIM({s}C{i})&"|"&TRIM({s}D{i})))'
+                f'LOWER(IF({use_item},TRIM({s}A{i}),"")&"|"&TRIM({s}C{i})'
+                f'&"|"&IF({use_desc},TRIM({s}D{i}),"")))'
             )
             calc[f"{ocol}{i}"] = (
                 f'=IF({kcol}{i}="","",SUMPRODUCT(--(${kcol}$2:{kcol}{i}={kcol}{i})))'
@@ -180,7 +190,25 @@ def build(list1_rows, list2_rows, n):
     cmp_ws[f"I{total_row}"].font = bold
     cmp_ws[f"J{total_row}"].font = bold
 
-    for col, width in zip("ABCDEFGHIJ", (10, 12, 30, 11, 11, 20, 16, 3, 16, 8)):
+    # Match-key selector below the summary
+    cmp_ws["I8"] = "Match rows on"
+    cmp_ws["I8"].font = bold
+    cmp_ws["I9"] = KEY_MODE_LABELS[key_mode]
+    thin = Side(style="thin", color="808080")
+    cmp_ws["I9"].border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    cmp_ws["I9"].fill = PatternFill("solid", fgColor="FFF2CC")
+    cmp_ws["I10"] = "Tap the cell above to change the key"
+    cmp_ws["I10"].font = Font(italic=True, color="808080")
+    dv = DataValidation(
+        type="list",
+        formula1='"' + ",".join(KEY_MODE_LABELS[m] for m in ("full", "part", "part-desc", "item-part")) + '"',
+        allow_blank=False, showDropDown=False,
+        error="Pick one of the listed match keys", errorTitle="Match key",
+    )
+    cmp_ws.add_data_validation(dv)
+    dv.add("I9")
+
+    for col, width in zip("ABCDEFGHIJ", (10, 12, 30, 11, 11, 20, 16, 3, 30, 8)):
         cmp_ws.column_dimensions[col].width = width
     for r in range(2, m + 1):
         for col in "DEF":

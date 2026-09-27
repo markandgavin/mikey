@@ -43,8 +43,13 @@ pip install openpyxl
 
 ## How rows are matched
 
-- Match key is Item # + Part # + Part Description. All three must match after
-  trimming whitespace, ignoring case.
+- By default the match key is Item # + Part # + Part Description. All three
+  must match after trimming whitespace, ignoring case.
+- You can change the key. Script: `python compare.py workbook.xlsx --key part`
+  (choices: `full`, `part`, `part-desc`, `item-part`). Self-calculating
+  workbook: pick from the "Match rows on" dropdown in cell I9 of the
+  Comparison tab. Use `part` (Part # only) when Item # is just a line number
+  that differs between the two lists.
 - Duplicate keys within a list stay as separate rows. They are paired in order
   of appearance (1st with 1st, 2nd with 2nd). Leftovers show as missing from
   the other list.
@@ -65,7 +70,7 @@ Header is bold with a filter, the top row is frozen, and columns are autofit.
 | Only in List 1 | No matching row in List 2 | red |
 | Only in List 2 | No matching row in List 1 | blue |
 
-A summary block in columns I:J counts each status plus the total.
+A summary block in columns I:J counts each status plus the total, and shows which key was used.
 
 ## Test
 

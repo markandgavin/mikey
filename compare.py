@@ -2,7 +2,13 @@
 """Compare two parts lists in an Excel workbook and write the results.
 
 Usage:
-    python compare.py "path/to/workbook.xlsx"
+    python compare.py "path/to/workbook.xlsx" [--key MODE]
+
+MODE decides which columns must match for two rows to pair up:
+    full       Item # + Part # + Part Description (default)
+    part       Part # only
+    part-desc  Part # + Part Description
+    item-part  Item # + Part #
 
 The workbook must contain the sheets "List 1" and "List 2", each with the
 header row  Item # | Quantity | Part # | Part Description  in row 1 and data
@@ -10,6 +16,7 @@ from row 2 down. Results are written as static values to the "Comparison"
 sheet (created if missing, cleared first).
 """
 
+import argparse
 import sys
 from collections import OrderedDict
 
@@ -46,6 +53,20 @@ FILLS = {
 
 SUMMARY_COL = 9  # column I; summary block sits beside the table
 
+# key mode -> (use Item #, use Part Description); Part # is always used
+KEY_MODES = {
+    "full": (True, True),
+    "part": (False, False),
+    "part-desc": (False, True),
+    "item-part": (True, False),
+}
+KEY_MODE_LABELS = {
+    "full": "Item # + Part # + Description",
+    "part": "Part # only",
+    "part-desc": "Part # + Description",
+    "item-part": "Item # + Part #",
+}
+
 
 # --------------------------------------------------------------------------
 # Reading
@@ -76,16 +97,19 @@ def parse_qty(value, where):
     return int(num) if num.is_integer() else num
 
 
-def read_list(ws):
+def read_list(ws, key_mode="full"):
     """Read a list sheet into rows: (key, display_item, display_part,
     display_desc, qty). Fully blank rows are skipped."""
+    use_item, use_desc = KEY_MODES[key_mode]
     rows = []
     for idx, row in enumerate(ws.iter_rows(min_row=2, max_col=4, values_only=True), start=2):
         item, qty, part, desc = (list(row) + [None] * 4)[:4]
         item_t, part_t, desc_t = clean_text(item), clean_text(part), clean_text(desc)
         if not item_t and not part_t and not desc_t and qty is None:
             continue
-        key = (item_t.lower(), part_t.lower(), desc_t.lower())
+        key = (item_t.lower() if use_item else "",
+               part_t.lower(),
+               desc_t.lower() if use_desc else "")
         rows.append((key, item_t, part_t, desc_t,
                      parse_qty(qty, f"{ws.title} row {idx}")))
     return rows
@@ -159,7 +183,7 @@ def clear_sheet(ws):
         del ws.column_dimensions[col]
 
 
-def write_results(ws, results):
+def write_results(ws, results, key_mode="full"):
     clear_sheet(ws)
     bold = Font(bold=True)
     header_fill = PatternFill("solid", fgColor="D9D9D9")
@@ -198,6 +222,8 @@ def write_results(ws, results):
     total_row = len(STATUS_ORDER) + 2
     ws.cell(row=total_row, column=SUMMARY_COL, value="Total").font = bold
     ws.cell(row=total_row, column=SUMMARY_COL + 1, value=len(results)).font = bold
+    ws.cell(row=total_row + 2, column=SUMMARY_COL, value="Matched on").font = bold
+    ws.cell(row=total_row + 2, column=SUMMARY_COL + 1, value=KEY_MODE_LABELS[key_mode])
 
     autofit(ws)
     return counts
@@ -220,21 +246,22 @@ def autofit(ws, min_width=8, max_width=60):
 # Main
 # --------------------------------------------------------------------------
 
-def run(path):
+def run(path, key_mode="full"):
     wb = load_workbook(path)
     for name in (LIST1, LIST2):
         if name not in wb.sheetnames:
             sys.exit(f"error: sheet '{name}' not found in {path}")
 
-    list1 = read_list(wb[LIST1])
-    list2 = read_list(wb[LIST2])
+    list1 = read_list(wb[LIST1], key_mode)
+    list2 = read_list(wb[LIST2], key_mode)
     results = compare(list1, list2)
 
     ws = wb[OUTPUT] if OUTPUT in wb.sheetnames else wb.create_sheet(OUTPUT)
-    counts = write_results(ws, results)
+    counts = write_results(ws, results, key_mode)
     wb.save(path)
 
     print(f"Read {len(list1)} rows from '{LIST1}', {len(list2)} rows from '{LIST2}'.")
+    print(f"Matched on: {KEY_MODE_LABELS[key_mode]}")
     print(f"Wrote {len(results)} rows to '{OUTPUT}' in {path}")
     for status in STATUS_ORDER:
         print(f"  {status:<15} {counts[status]}")
@@ -242,10 +269,14 @@ def run(path):
 
 
 def main(argv):
-    if len(argv) != 2 or argv[1] in ("-h", "--help"):
-        print(__doc__.strip())
-        return 2
-    run(argv[1])
+    ap = argparse.ArgumentParser(description="Compare List 1 and List 2 in a workbook.")
+    ap.add_argument("workbook", help="path to the .xlsx workbook")
+    ap.add_argument("--key", choices=sorted(KEY_MODES), default="full",
+                    help="columns that must match for rows to pair up "
+                         "(full = Item # + Part # + Description, part = Part # only, "
+                         "part-desc = Part # + Description, item-part = Item # + Part #)")
+    args = ap.parse_args(argv[1:])
+    run(args.workbook, args.key)
     return 0
 
 
