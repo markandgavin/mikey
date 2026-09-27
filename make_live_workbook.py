@@ -16,6 +16,12 @@ Writes:
 """
 
 import argparse
+import os
+import re
+import shutil
+import subprocess
+import tempfile
+import zipfile
 
 from openpyxl import Workbook
 from openpyxl.formatting.rule import FormulaRule
@@ -183,15 +189,54 @@ def build(list1_rows, list2_rows, n):
     return wb
 
 
+def bake_values(path):
+    """Recalculate the workbook with LibreOffice so every formula cell carries
+    a cached result. Without this, viewers that do not recalculate on open
+    (file previews, some phone apps) show the Comparison tab empty.
+    Returns True when the values were baked in, False if LibreOffice is absent."""
+    soffice = shutil.which("soffice") or shutil.which("libreoffice")
+    if not soffice:
+        return False
+    with tempfile.TemporaryDirectory() as tmp:
+        env = dict(os.environ, HOME=tmp)  # LibreOffice needs a writable profile
+        subprocess.run([soffice, "--headless", "--convert-to", "xlsx",
+                        "--outdir", tmp, os.path.abspath(path)],
+                       check=True, env=env, capture_output=True, timeout=600)
+        out = os.path.join(tmp, os.path.basename(path))
+        if not os.path.exists(out):
+            return False
+        # Keep "recalculate on load" so Excel refreshes results after any edit
+        # even if a viewer only reads the cached ones.
+        patched = path + ".tmp"
+        with zipfile.ZipFile(out) as src, zipfile.ZipFile(patched, "w", zipfile.ZIP_DEFLATED) as dst:
+            for item in src.infolist():
+                data = src.read(item.filename)
+                if item.filename == "xl/workbook.xml":
+                    text = data.decode("utf-8")
+                    if "fullCalcOnLoad" not in text:
+                        text = re.sub(r"<calcPr", '<calcPr fullCalcOnLoad="1"', text, count=1)
+                    data = text.encode("utf-8")
+                dst.writestr(item, data)
+        os.replace(patched, path)
+    return True
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--rows", type=int, default=500,
                     help="maximum rows per list (default 500)")
+    ap.add_argument("--no-bake", action="store_true",
+                    help="skip the LibreOffice recalculation step")
     args = ap.parse_args()
-    build([], [], args.rows).save("parts_comparison_live.xlsx")
-    build(make_sample.LIST1, make_sample.LIST2, args.rows).save("sample_parts_live.xlsx")
-    print(f"Wrote parts_comparison_live.xlsx and sample_parts_live.xlsx "
-          f"({args.rows} rows per list)")
+    outputs = {
+        "parts_comparison_live.xlsx": ([], []),
+        "sample_parts_live.xlsx": (make_sample.LIST1, make_sample.LIST2),
+    }
+    for name, (l1, l2) in outputs.items():
+        build(l1, l2, args.rows).save(name)
+        baked = False if args.no_bake else bake_values(name)
+        print(f"Wrote {name} ({args.rows} rows per list, "
+              f"{'results baked in' if baked else 'no cached results: LibreOffice not found'})")
 
 
 if __name__ == "__main__":

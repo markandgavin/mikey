@@ -92,3 +92,7 @@ from the script version:
 - Colours come from conditional formatting, and the helper formulas live on a
   hidden `Calc` sheet. Unhide it if you want to see how it works.
 - Rows below your data show as blank in the table; the filter still works.
+- `make_live_workbook.py` recalculates the files with LibreOffice when it is
+  installed, so the results are stored in the file and show even in viewers
+  that do not calculate formulas (file previews, some phone apps). Excel
+  recalculates on open and on every edit either way.
