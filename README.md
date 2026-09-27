@@ -12,6 +12,9 @@ Compares two parts lists in an Excel workbook and writes the differences to a
 | `sample_parts.xlsx` | Sample workbook with test data and the generated `Comparison` tab. |
 | `make_sample.py` | Regenerates the template and sample workbooks. |
 | `test_compare.py` | Regression test that checks the sample output row by row. |
+| `parts_comparison_live.xlsx` | Self-calculating workbook (formulas, no script). Paste and the Comparison tab updates itself. |
+| `sample_parts_live.xlsx` | The self-calculating workbook with the sample data loaded. |
+| `make_live_workbook.py` | Regenerates the two self-calculating workbooks. |
 
 ## Setup
 
@@ -72,3 +75,20 @@ python test_compare.py
 
 Builds the sample data in a temp file, runs the comparison twice (to confirm
 old results are cleared), and checks every output row, color, and the summary.
+
+## No-script option (phone, tablet, or no Python)
+
+`parts_comparison_live.xlsx` does the same comparison with ordinary Excel
+formulas, so it works in the Excel phone apps and Excel for the web.
+
+1. Open it in Excel and paste your data into `List 1` and `List 2`.
+2. Look at the `Comparison` tab. It recalculates as you type.
+
+It gives the same rows, order, colours, and summary as `compare.py`. Differences
+from the script version:
+
+- It holds up to 500 rows per list. Run `python make_live_workbook.py --rows 1000`
+  to build a bigger one (larger workbooks recalculate more slowly on a phone).
+- Colours come from conditional formatting, and the helper formulas live on a
+  hidden `Calc` sheet. Unhide it if you want to see how it works.
+- Rows below your data show as blank in the table; the filter still works.
